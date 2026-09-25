@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {blank,mergeSync,cleanLesson} from '../app/model.js';
+import {evaluate,cleanWord,regionQuestions,chooseDirection} from '../app/vocab-core.js';
+const word=cleanWord({id:'w',english:[{answers:['flat'],region:'UK'},{answers:['apartment'],region:'US'}],german:['Wohnung']});
+test('English spelling strict; German typo tolerated; all meanings require both variants',()=>{assert.equal(evaluate(word,['flatt'],'de-en').grade,'wrong');assert.equal(evaluate(word,['Wohnugn'],'en-de').grade,'full');assert.equal(evaluate(word,['flat'],'de-en','all').grade,'partial');const r=evaluate(word,['flat','apartment'],'de-en','all');assert.equal(r.grade,'full');assert.equal(regionQuestions(word,r).length,2);assert.equal(evaluate(word,['flat','flat'],'de-en','all').grade,'partial')});
+test('German manual typo override is limited to German',()=>{const id=word.german[0].id;assert.equal(evaluate(word,['Wng'],'en-de','any',{0:id}).grade,'full');assert.equal(evaluate(word,['flatt'],'de-en','any',{0:word.english[0].id}).grade,'wrong')});
+test('sync retains edits made while network request was in flight',()=>{const d=blank();d.pending=['old','new'];d.events=[{id:'old'},{id:'new'}];d.collections=[{id:'c',name:'Newer'}];d.collectionOps=[{id:'c',opId:'new-op',baseRevision:0,value:{id:'c',name:'Newer'}}];mergeSync(d,{app:'english-practice',schema:1,cursor:1,accepted:['old'],events:[{id:'old'}],collections:[{id:'c',name:'Older',revision:1}],collectionAccepted:[{id:'c',opId:'old-op',revision:1}],contents:[],feedback:[]},[{id:'c',opId:'old-op'}]);assert.deepEqual(d.pending,['new']);assert.equal(d.collections[0].name,'Newer');assert.equal(d.collectionOps[0].baseRevision,1);assert.equal(d.events.length,2)});
+test('invalid cloud response does not clear pending entries',()=>{const d=blank();d.pending=['answer'];assert.throws(()=>mergeSync(d,{app:'wrong'},[]));assert.deepEqual(d.pending,['answer'])});
+test('lesson IDs cannot silently duplicate tasks',()=>assert.throws(()=>cleanLesson({id:'l',type:'lesson',tasks:[{id:'a',prompt:'p'},{id:'a',prompt:'p'}]})));
