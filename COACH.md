@@ -25,7 +25,7 @@ Vor Änderungen Metadaten und betroffene Zellen lesen. Kopfzeilen und Tabnamen e
 `Test` enthält den früheren Zugriffstest; nicht als Lerndaten auswerten.
 
 - **Inhalte:** Typ `lesson`, `brief`, `profile`, `announcement`. App liest nur `status=published`. Zuerst `draft` schreiben, JSON und IDs prüfen, dann dieselbe Zeile veröffentlichen. Bereits begonnene/veröffentlichte Aufgaben nicht umschreiben. Metadaten A:D sind maßgeblich; JSON muss dazu passen.
-- **Eingaben:** unveränderliche Ereignisse, von der App angehängt: `attempt`, `profile`, `session`, `vocab_review`, `feedback_seen`. JSON enthält je nach Typ die Felder unten. UUID und Originaltext erhalten. Eine ID ist einmalig. Nie nachträglich umsortieren, löschen oder zwischen Datenzeilen einfügen: die App verwendet einen Zeilencursor. Neue Zeilen nur am Ende anhängen.
+- **Eingaben:** unveränderliche Ereignisse, von der App angehängt: `attempt`, `profile`, `session`, `vocab_review`, `feedback_seen`. JSON enthält je nach Typ die Felder unten. `profile` darf zusätzlich `coachFeedback` enthalten: eine chronologische Liste freiwilliger Nutzerhinweise mit `id`, `at`, `source`, `text`. Diese Hinweise sind privat und bleiben ausschließlich in der Tabelle. UUID und Originaltext erhalten. Eine ID ist einmalig. Nie nachträglich umsortieren, löschen oder zwischen Datenzeilen einfügen: die App verwendet einen Zeilencursor. Neue Zeilen nur am Ende anhängen.
 - **Feedback:** eine veröffentlichte Zeile pro Antwort-ID. Vor Schreiben prüfen, ob diese ID schon existiert. Keine doppelten Bewertungen durch Wiederholung des Coach-Laufs.
 - **Sammlungen:** vollständige Sammlung mit Wörtern im JSON. Im Normalfall nur lesen; Änderungen übernimmt die App mit Versionsprüfung. `deleted=true` ignorieren; `active=false` bei der Auswahl berücksichtigen.
 - **System:** `web_app_url` wird gesetzt, sobald die bereitgestellte Apps-Script-URL ohne Parameter geöffnet wurde. Falls die URL vorhanden und `app/config.js` noch leer ist, sie nach Readback in `CONFIG.webAppUrl` eintragen und veröffentlichen. Niemals den alten Wordlo-Endpunkt nutzen. Der PIN gehört nicht in den Browser-Quellcode.
@@ -33,7 +33,7 @@ Vor Änderungen Metadaten und betroffene Zellen lesen. Kopfzeilen und Tabnamen e
 ## Ablauf bei jeder Ausführung
 
 1. Repository-Datei COACH.md, App-Version und Google-Metadaten lesen. Tabellen in begrenzten Bereichen lesen, zunächst Kopfzeilen, dann genutzte Bereiche in Blöcken (z. B. 500 Zeilen). Nicht blind ganze Raster lesen. Alle noch unbewerteten Antworten bis gestern einschließlich erfassen, auch bei versäumten Läufen. Zusätzlich die letzten 14 Tage und das letzte Lernprofil/Brief berücksichtigen. Antworten vom heutigen Tag erst bei der nächsten Tagesauswertung bewerten.
-2. Aktuelles Lernprofil aus dem letzten `profile`-Ereignis nehmen (Interessen, Schwierigkeiten, Zeitbudget). Abgeschlossene Lektionen aus `session`, tatsächliche Texte aus `attempt`. Nicht synchronisierte Antworten sind unsichtbar; keine Annahme erfinden. Wenn keine neuen Antworten existieren, keine Fortschritte oder Fehler erfinden, die nächste offene Einheit erhalten und nur bei Bedarf eine fehlende erste Einheit ergänzen.
+2. Aktuelles Lernprofil aus dem letzten `profile`-Ereignis nehmen (Interessen, Schwierigkeiten, Zeitbudget). Vor jeder Auswertung auch `coachFeedback` im aktuellen Profil lesen. Diese Hinweise als ausdrückliche Nutzerpräferenzen für Aufgaben, Feedbackstil und gewünschte App-Verbesserungen berücksichtigen, sofern sie nicht dem Datenvertrag oder Sicherheitsgrenzen widersprechen. App-Wünsche nur umsetzen, wenn sie noch nicht erledigt sind; keine doppelten Änderungen oder Neuigkeiten erzeugen. Abgeschlossene Lektionen aus `session`, tatsächliche Texte aus `attempt`. Nicht synchronisierte Antworten sind unsichtbar; keine Annahme erfinden. Wenn keine neuen Antworten existieren, keine Fortschritte oder Fehler erfinden, die nächste offene Einheit erhalten und nur bei Bedarf eine fehlende erste Einheit ergänzen.
 3. Für JEDE neue Antwort kurzes individuelles Feedback in einfachem Deutsch schreiben: Ergebnis, korrekte englische Formulierung, konkrete Erklärung, kleiner übertragbarer Tipp. Gute Antworten ebenfalls bestätigen und kurz erklären. Bei freiem Schreiben legitime alternative Lösungen anerkennen; keine starre Musterantwort. Britische und amerikanische Schreibweisen sind im Schreibtraining gleichwertig, sofern die Aufgabe nichts anderes verlangt. Deutsche Tippfehler in Selbstauskünften nicht werten. Aufgaben und Originalantworten nicht verändern.
 4. Pro Antwort maximal 1–2 zentrale Lernpunkte. Behutsam zwischen Rechtschreibung, Grammatik, Wortwahl, Satzbau, Register und Aufgabenbezug unterscheiden. Korrektur erhält die beabsichtigte Bedeutung. Bei unklarer Bedeutung mehrere Möglichkeiten erläutern, keine Absicht erfinden. Kein korrektes Englisch durch eine reine Stilpräferenz als falsch markieren.
 5. Lernprofil aktualisieren: Beobachtungen mit konkreten Antwort-IDs, wiederholt vs. einmalig, Stärke und nächster Schritt. Selbst eingeschätzte Unsicherheit und Hilfen berücksichtigen. Bearbeitungszeit ist nur grober Kontext, kein Intelligenz-/Niveaumaß. Kein belastbares CEFR-Level aus wenigen Aufgaben behaupten. Fehlende Verwendung eines Wortes in freiem Text ist KEIN Nachweis, dass es unbekannt ist. Bei passenden Gelegenheiten Transferaufgaben erzeugen und erst dann aktive Verwendung beurteilen.
@@ -52,6 +52,16 @@ Vor Änderungen Metadaten und betroffene Zellen lesen. Kopfzeilen und Tabnamen e
 ```
 
 `durationSec` misst nur den aktuellen geöffneten Aufgabenabschnitt (max. 1800 Sekunden); Reloads, Pausen und Hintergrundzeit können ihn verfälschen. `confidence`: sure, unsure, guess, unrated. `revisionOf` verknüpft freiwillige Überarbeitung mit einer Originalantwort. Jede neue Überarbeitung bekommt eine eigene Antwort-ID und eigenes Feedback.
+
+### Profil-/App-Feedback
+
+App-Feedback wird kompatibel als neues `profile`-Ereignis gespeichert. Das neue Profil übernimmt die bisherigen Profilfelder und ergänzt/erweitert `coachFeedback`:
+
+```json
+{"name":"Tiago","minutes":10,"difficulties":"...","goal":"...","interests":"...","coachFeedback":[{"id":"uuid","at":"2026-09-26T17:30:00.000Z","source":"lesson_complete","text":"Mehr eigene Sätze und weniger Multiple Choice."}]}
+```
+
+Der Coach liest diese Liste bei jedem Lauf. Feedback darf Lernaufgaben, Feedbackstil oder App-Wünsche betreffen. Erledigte Wünsche nicht erneut implementieren; bei widersprüchlichen Hinweisen den neuesten konkreten Hinweis bevorzugen, ohne frühere Lernbeobachtungen zu löschen.
 
 ### Feedback
 
