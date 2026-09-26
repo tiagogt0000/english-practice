@@ -1,4 +1,4 @@
-const CACHE='english-practice-v1.0.0';
+const CACHE='english-practice-v1.1.0';
 const ASSETS=['./','index.html','app/style.css','app/main.js','app/model.js','app/sync.js','app/config.js','app/seed.js','app/vocab-core.js','icon.svg','manifest.webmanifest'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('english-practice-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
